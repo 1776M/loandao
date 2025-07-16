@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAO-to-DAO Loan UI</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    .container {
+      background: #1e293b;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      max-width: 700px;
+      width: 100%;
+    }
+    .header {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    .info {
+      margin: 1rem 0;
+    }
+    button {
+      background-color: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      margin: 0.25rem;
+    }
+    button:hover {
+      background-color: #2563eb;
+    }
+    input {
+      margin: 0.25rem 0;
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: none;
+    }
+    .term {
+      background: #334155;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-top: 1rem;
+    }
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">DAO-to-DAO Loan Dashboard</div>
+    <div class="info">
+      <strong>Borrower DAO:</strong> <span id="borrower"></span><br />
+      <strong>Lender DAO:</strong> <span id="lender"></span><br />
+      <strong>Loan Amount:</strong> <span id="amount"></span> USDC<br />
+      <strong>Interest:</strong> <span id="interest"></span>% annual<br />
+      <strong>Collateral:</strong> <span id="collateral"></span> DAO tokens
+    </div>
+
+    <div class="term">
+      <div><strong>Loan Terms</strong></div>
+      <ul>
+        <li>Quarterly interest payments</li>
+        <li>2-year loan term</li>
+        <li>Collateral locked in smart contract</li>
+      </ul>
+    </div>
+
+    <div class="info button-row">
+      <button onclick="connectWallet()">Connect Wallet</button>
+      <button onclick="approveCollateral()">Approve Collateral</button>
+      <button onclick="fundLoan()">Fund Loan</button>
+      <button onclick="payInterest()">Pay Interest</button>
+      <button onclick="repayPrincipal()">Repay Principal</button>
+      <button onclick="claimCollateral()">Claim Collateral</button>
+    </div>
+  </div>
+
+  <script>
+    const loanAddress = "0x4DA771d20fa0e3372e89a233CD09316B92D015bd";
+    const borrowerDAOAddress = "0x460A4a1F6aC93e3363Ee837B106cfE38fA51A655";
+    const loanABI = [
+      "function fundLoan() external",
+      "function borrower() view returns (address)",
+      "function lender() view returns (address)",
+      "function principal() view returns (uint256)",
+      "function interestRate() view returns (uint256)",
+      "function collateralAmount() view returns (uint256)",
+      "function payInterest() external",
+      "function repayPrincipal() external",
+      "function claimCollateral() external"
+    ];
+
+    const borrowerDAOABI = [
+      "function approveLoanCollateral(address loanContract, uint256 amount) external"
+    ];
+
+    let provider, signer, loanContract, borrowerDAO;
+
+    async function connectWallet() {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      signer = await provider.getSigner();
+      loanContract = new ethers.Contract(loanAddress, loanABI, signer);
+      borrowerDAO = new ethers.Contract(borrowerDAOAddress, borrowerDAOABI, signer);
+
+      const borrower = await loanContract.borrower();
+      const lender = await loanContract.lender();
+      const principal = await loanContract.principal();
+      const interest = await loanContract.interestRate();
+      const collateral = await loanContract.collateralAmount();
+
+      document.getElementById("borrower").textContent = borrower;
+      document.getElementById("lender").textContent = lender;
+      document.getElementById("amount").textContent = Number(principal) / 1e6;
+      document.getElementById("interest").textContent = Number(interest) / 100;
+      document.getElementById("collateral").textContent = Number(collateral) / 1e18;
+    }
+
+    async function fundLoan() {
+      if (!loanContract) await connectWallet();
+      const tx = await loanContract.fundLoan();
+      await tx.wait();
+      alert("Loan funded successfully!");
+    }
+
+    async function approveCollateral() {
+      if (!borrowerDAO) await connectWallet();
+      const collateral = await loanContract.collateralAmount();
+      const tx = await borrowerDAO.approveLoanCollateral(loanAddress, collateral);
+      await tx.wait();
+      alert("Collateral approved!");
+    }
+
+    async function payInterest() {
+      if (!loanContract) await connectWallet();
+      const tx = await loanContract.payInterest();
+      await tx.wait();
+      alert("Interest payment successful!");
+    }
+
+    async function repayPrincipal() {
+      if (!loanContract) await connectWallet();
+      const tx = await loanContract.repayPrincipal();
+      await tx.wait();
+      alert("Principal repaid, collateral returned.");
+    }
+
+    async function claimCollateral() {
+      if (!loanContract) await connectWallet();
+      const tx = await loanContract.claimCollateral();
+      await tx.wait();
+      alert("Collateral claimed by lender.");
+    }
+  </script>
+</body>
+</html>
