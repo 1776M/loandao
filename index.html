@@ -4,7 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DAO-to-DAO Loan UI</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js">
+    const usdcAddress = "0x9932e0A5D9bc18d443ADe39c4c1c0bd0787A64Fd"; // MockUSDC on Arbitrum Sepolia
+    const erc20ABI = [
+        "function balanceOf(address owner) view returns (uint256)"
+    ];
+
+    let usdc;
+  </script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -71,6 +78,8 @@
       <strong>Loan Amount:</strong> <span id="amount"></span> USDC<br />
       <strong>Interest:</strong> <span id="interest"></span>% annual<br />
       <strong>Collateral:</strong> <span id="collateral"></span> DAO tokens
+      <strong>Borrower Balance:</strong> <span id="borrowerBalance"></span> USDC<br />
+      <strong>Lender Balance:</strong> <span id="lenderBalance"></span> USDC<br />
     </div>
 
     <div class="term">
@@ -118,18 +127,24 @@
       signer = await provider.getSigner();
       loanContract = new ethers.Contract(loanAddress, loanABI, signer);
       borrowerDAO = new ethers.Contract(borrowerDAOAddress, borrowerDAOABI, signer);
-
+      usdc = new ethers.Contract(usdcAddress, erc20ABI, provider);
+      
       const borrower = await loanContract.borrower();
       const lender = await loanContract.lender();
       const principal = await loanContract.principal();
       const interest = await loanContract.interestRate();
       const collateral = await loanContract.collateralAmount();
-
+      const borrowerBalance = await usdc.balanceOf(borrower);
+      const lenderBalance = await usdc.balanceOf(lender);
+      
       document.getElementById("borrower").textContent = borrower;
       document.getElementById("lender").textContent = lender;
       document.getElementById("amount").textContent = Number(principal) / 1e6;
       document.getElementById("interest").textContent = Number(interest) / 100;
       document.getElementById("collateral").textContent = Number(collateral) / 1e18;
+      document.getElementById("borrowerBalance").textContent = (Number(borrowerBalance) / 1e6).toFixed(2);
+      document.getElementById("lenderBalance").textContent = (Number(lenderBalance) / 1e6).toFixed(2);
+
     }
 
     async function fundLoan() {
