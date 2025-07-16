@@ -4,12 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DAO-to-DAO Loan UI</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js">
-    const usdcAddress = "0x9932e0A5D9bc18d443ADe39c4c1c0bd0787A64Fd"; // MockUSDC on Arbitrum Sepolia
-    const erc20ABI = [
-        "function balanceOf(address owner) view returns (uint256)"
-    ];
+  <!-- Load ethers -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 
+  <!-- Custom JS -->
+  <script>
+    const usdcAddress = "0x9932e0A5D9bc18d443ADe39c4c1c0bd0787A64Fd";
+    const erc20ABI = ["function balanceOf(address owner) view returns (uint256)"];
     let usdc;
   </script>
   <style>
