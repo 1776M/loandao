@@ -129,17 +129,25 @@
       loanContract = new ethers.Contract(loanAddress, loanABI, signer);
       borrowerDAO = new ethers.Contract(borrowerDAOAddress, borrowerDAOABI, signer);
       usdc = new ethers.Contract(usdcAddress, erc20ABI, provider);
-      
+
       const borrower = await loanContract.borrower();
       const lender = await loanContract.lender();
+      
+      const borrowerDAOContract = new ethers.Contract(borrower, borrowerDAOABI, provider);
+      const lenderDAOContract = new ethers.Contract(lender, lenderDAOABI, provider);
+
+      const borrowerOwner = await borrowerDAOContract.owner();
+      const lenderAdmin = await lenderDAOContract.admin();
+
       const principal = await loanContract.principal();
       const interest = await loanContract.interestRate();
       const collateral = await loanContract.collateralAmount();
+
       const borrowerBalance = await usdc.balanceOf(borrower);
       const lenderBalance = await usdc.balanceOf(lender);
       
-      document.getElementById("borrower").textContent = borrower;
-      document.getElementById("lender").textContent = lender;
+      document.getElementById("borrower").textContent = `${borrowerOwner} (via DAO ${borrower})`;
+      document.getElementById("lender").textContent = `${lenderAdmin} (via DAO ${lender})`;
       document.getElementById("amount").textContent = Number(principal) / 1e6;
       document.getElementById("interest").textContent = Number(interest) / 100;
       document.getElementById("collateral").textContent = Number(collateral) / 1e18;
