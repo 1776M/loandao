@@ -118,8 +118,14 @@
     ];
 
     const borrowerDAOABI = [
-      "function approveLoanCollateral(address loanContract, uint256 amount) external"
+      "function approveLoanCollateral(address loanContract, uint256 amount) external",
+      "function owner() view returns (address)"
     ];
+
+    const lenderDAOABI = [
+      "function admin() view returns (address)"
+    ];
+
 
     let provider, signer, loanContract, borrowerDAO;
 
