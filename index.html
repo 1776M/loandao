@@ -1,202 +1,427 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DAO-to-DAO Loan UI</title>
-  <!-- Load ethers -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DAO-to-DAO Loan Dashboard (v2)</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Ethers.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 
-  <!-- Custom JS -->
-  <script>
-    const usdcAddress = "0x9932e0A5D9bc18d443ADe39c4c1c0bd0787A64Fd";
-    const erc20ABI = ["function balanceOf(address owner) view returns (uint256)"];
-    let usdc;
-  </script>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #0f172a;
-      color: #f8fafc;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem;
-    }
-    .container {
-      background: #1e293b;
-      padding: 2rem;
-      border-radius: 1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      max-width: 700px;
-      width: 100%;
-    }
-    .header {
-      font-size: 1.8rem;
-      margin-bottom: 1rem;
-    }
-    .info {
-      margin: 1rem 0;
-    }
-    button {
-      background-color: #3b82f6;
-      color: white;
-      padding: 0.5rem 1rem;
-      border: none;
-      border-radius: 0.5rem;
-      cursor: pointer;
-      margin: 0.25rem;
-    }
-    button:hover {
-      background-color: #2563eb;
-    }
-    input {
-      margin: 0.25rem 0;
-      width: 100%;
-      padding: 0.5rem;
-      border-radius: 0.5rem;
-      border: none;
-    }
-    .term {
-      background: #334155;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin-top: 1rem;
-    }
-    .button-row {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-    }
-  </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-bg': '#0f172a',
+                        'secondary-bg': '#1e293b',
+                        'card-bg': '#334155',
+                        'accent': '#3b82f6',
+                        'accent-hover': '#2563eb',
+                        'success': '#10b981',
+                        'error': '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">DAO-to-DAO Loan Dashboard</div>
-    <div class="info">
-      <strong>Borrower DAO:</strong> <span id="borrower"></span><br />
-      <strong>Lender DAO:</strong> <span id="lender"></span><br />
-      <strong>Loan Amount:</strong> <span id="amount"></span> USDC<br />
-      <strong>Interest:</strong> <span id="interest"></span>% annual<br />
-      <strong>Collateral:</strong> <span id="collateral"></span> DAO tokens <br />
-      <strong>Borrower Balance:</strong> <span id="borrowerBalance"></span> USDC<br />
-      <strong>Lender Balance:</strong> <span id="lenderBalance"></span> USDC<br />
+<body class="bg-primary-bg min-h-screen flex items-start justify-center p-4 text-white">
+
+    <div class="container bg-secondary-bg p-6 rounded-xl shadow-2xl max-w-lg w-full md:max-w-3xl">
+        <h1 class="text-3xl font-bold mb-4 text-center text-accent">DAO-to-DAO Loan Dashboard</h1>
+        
+        <!-- Connection Status & Role -->
+        <div id="status-container" class="mb-4 p-3 rounded-lg flex justify-between items-center bg-card-bg shadow-inner">
+            <div id="connection-status" class="text-sm">
+                <span class="text-yellow-400 font-semibold">Wallet: Disconnected</span>
+            </div>
+            <div id="role-display" class="text-sm font-bold">Role: Spectator</div>
+            <button onclick="connectWallet()" class="bg-accent hover:bg-accent-hover text-white text-sm px-3 py-1 rounded-lg">Connect Wallet</button>
+        </div>
+
+        <!-- Transaction Status (Toast) -->
+        <div id="tx-message" class="hidden mb-4 p-3 rounded-lg text-sm transition-all duration-300"></div>
+
+        <div id="dashboard-content" class="space-y-6">
+
+            <!-- Loan Overview -->
+            <div class="p-5 bg-card-bg rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-3">Loan Summary</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <p><strong>Principal:</strong> <span id="amount">--</span> USDC</p>
+                    <p><strong>Annual Interest:</strong> <span id="interest">--</span>%</p>
+                    <p><strong>Collateral:</strong> <span id="collateral">--</span> DAO Tokens</p>
+                    <p><strong>Payments Made:</strong> <span id="payments-made">--</span> / 8</p>
+                    <p><strong>Loan Status:</strong> <span id="loan-disbursed" class="font-semibold text-yellow-500">Pending</span></p>
+                    <p><strong>Time Remaining:</strong> <span id="time-remaining">--</span></p>
+                </div>
+            </div>
+
+            <!-- Party Details -->
+            <div class="p-5 bg-card-bg rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-3">Party Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <p><strong>Borrower DAO:</strong> <span id="borrower-dao-owner" class="truncate">--</span></p>
+                    <p><strong>Lender DAO:</strong> <span id="lender-dao-admin" class="truncate">--</span></p>
+                    <p><strong>DAO Contract (B):</strong> <span id="borrower-dao-addr" class="truncate text-gray-400">--</span></p>
+                    <p><strong>DAO Contract (L):</strong> <span id="lender-dao-addr" class="truncate text-gray-400">--</span></p>
+                </div>
+            </div>
+
+            <!-- Action Buttons (Conditional Visibility) -->
+            <div id="action-area" class="p-5 bg-card-bg rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-3">Actions</h2>
+                <div class="flex flex-wrap gap-3" id="buttons-container">
+                    <!-- Buttons will be rendered here based on role and status -->
+                </div>
+            </div>
+
+            <!-- Balances (Always visible) -->
+            <div class="p-5 bg-card-bg rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-3">Liquidity Snapshot</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <p><strong>Borrower USDC Balance:</strong> <span id="borrower-balance">--</span></p>
+                    <p><strong>Lender USDC Balance:</strong> <span id="lender-balance">--</span></p>
+                    <p><strong>Collateral Token Address:</strong> <span id="collateral-token-addr" class="truncate text-gray-400">--</span></p>
+                    <p><strong>Loan USDC Allowance:</strong> <span id="usdc-allowance">--</span></p>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="term">
-      <div><strong>Loan Terms</strong></div>
-      <ul>
-        <li>Quarterly interest payments</li>
-        <li>2-year loan term</li>
-        <li>Collateral locked in smart contract</li>
-      </ul>
-    </div>
+    <script>
+        // --- CONSTANTS AND GLOBALS ---
+        const loanAddress = "0x169b75e5f42Ef75cedcE50f4F56f97324162197f";
+        const usdcAddress = "0x9932e0A5D9bc18d443ADe39c4c1c0bd0787A64Fd"; // Mock USDC Address
+        const USDC_DECIMALS = 6;
+        const COLLATERAL_DECIMALS = 18;
+        
+        // ABIs updated to include status variables from the Solidity contract
+        const erc20ABI = [
+            "function balanceOf(address owner) view returns (uint256)",
+            "function approve(address spender, uint256 amount) external returns (bool)",
+            "function allowance(address owner, address spender) view returns (uint256)"
+        ];
 
-    <div class="info button-row">
-      <button onclick="connectWallet()">Connect Wallet</button>
-      <button onclick="approveCollateral()">Approve Collateral</button>
-      <button onclick="fundLoan()">Fund Loan</button>
-      <button onclick="payInterest()">Pay Interest</button>
-      <button onclick="repayPrincipal()">Repay Principal</button>
-      <button onclick="claimCollateral()">Claim Collateral</button>
-    </div>
-  </div>
+        const loanABI = [
+            "function fundLoan() external",
+            "function borrower() view returns (address)",
+            "function lender() view returns (address)",
+            "function principal() view returns (uint256)",
+            "function interestRate() view returns (uint256)", // BPS
+            "function collateralAmount() view returns (uint256)",
+            "function payInterest() external",
+            "function repayPrincipal() external",
+            "function claimCollateral() external",
+            "function disbursed() view returns (bool)",
+            "function paymentsMade() view returns (uint256)",
+            "function startTime() view returns (uint256)",
+            "function loanDuration() view returns (uint256)",
+            "function quarterly() view returns (uint256)",
+            "function usdc() view returns (address)",
+            "function collateralToken() view returns (address)"
+        ];
 
-  <script>
-    const loanAddress = "0x169b75e5f42Ef75cedcE50f4F56f97324162197f";
-    const borrowerDAOAddress = "0x054BA2587765A7186c564913b80484fA71ed0a5F";
-    const loanABI = [
-      "function fundLoan() external",
-      "function borrower() view returns (address)",
-      "function lender() view returns (address)",
-      "function principal() view returns (uint256)",
-      "function interestRate() view returns (uint256)",
-      "function collateralAmount() view returns (uint256)",
-      "function payInterest() external",
-      "function repayPrincipal() external",
-      "function claimCollateral() external"
-    ];
+        const borrowerDAOABI = [
+            "function approveLoanCollateral(address loanContract, uint256 amount) external",
+            "function owner() view returns (address)"
+        ];
 
-    const borrowerDAOABI = [
-      "function approveLoanCollateral(address loanContract, uint256 amount) external",
-      "function owner() view returns (address)"
-    ];
+        const lenderDAOABI = [
+            "function admin() view returns (address)"
+        ];
 
-    const lenderDAOABI = [
-      "function admin() view returns (address)"
-    ];
+        let provider, signer, signerAddress;
+        let loanContract, borrowerDAOContractInstance, lenderDAOContractInstance, usdcContractInstance;
+        let loanData = {};
+        
+        // --- UTILITY FUNCTIONS ---
+        
+        const formatAddress = (addr) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
+        const formatUnits = (value, decimals) => {
+            return ethers.formatUnits(value, decimals);
+        };
+        
+        const setTxMessage = (message, type = 'info') => {
+            const el = document.getElementById("tx-message");
+            el.textContent = message;
+            el.className = `mb-4 p-3 rounded-lg text-sm transition-all duration-300 ${type === 'success' ? 'bg-success/20 text-success' : type === 'error' ? 'bg-error/20 text-error' : 'bg-blue-400/20 text-blue-400'}`;
+            el.classList.remove('hidden');
+        };
 
-    let provider, signer, loanContract, borrowerDAO;
+        const timeRemaining = (startTime, duration, disbursed) => {
+            if (!disbursed || startTime === 0n) return "N/A";
+            const now = BigInt(Math.floor(Date.now() / 1000));
+            const endTime = startTime + duration;
+            if (now >= endTime) return "Expired (Repayment Due)";
+            
+            const remaining = endTime - now;
+            const days = Number(remaining) / (60 * 60 * 24);
+            return `${days.toFixed(0)} days left`;
+        };
 
-    async function connectWallet() {
-      provider = new ethers.BrowserProvider(window.ethereum);
-      signer = await provider.getSigner();
-      loanContract = new ethers.Contract(loanAddress, loanABI, signer);
-      borrowerDAO = new ethers.Contract(borrowerDAOAddress, borrowerDAOABI, signer);
-      usdc = new ethers.Contract(usdcAddress, erc20ABI, provider);
+        // --- CORE FUNCTIONS ---
 
-      const borrower = await loanContract.borrower();
-      const lender = await loanContract.lender();
-      
-      const borrowerDAOContract = new ethers.Contract(borrower, borrowerDAOABI, provider);
-      const lenderDAOContract = new ethers.Contract(lender, lenderDAOABI, provider);
+        async function connectWallet() {
+            if (typeof window.ethereum === 'undefined') {
+                setTxMessage("MetaMask or similar wallet extension is required.", 'error');
+                return;
+            }
 
-      const borrowerOwner = await borrowerDAOContract.owner();
-      const lenderAdmin = await lenderDAOContract.admin();
+            try {
+                // Initialize provider and signer
+                provider = new ethers.BrowserProvider(window.ethereum);
+                signer = await provider.getSigner();
+                signerAddress = signer.address;
 
-      const principal = await loanContract.principal();
-      const interest = await loanContract.interestRate();
-      const collateral = await loanContract.collateralAmount();
+                // Update connection status
+                document.getElementById("connection-status").innerHTML = `<span class="text-success font-semibold">Wallet: ${formatAddress(signerAddress)}</span>`;
 
-      const borrowerBalance = await usdc.balanceOf(borrower);
-      const lenderBalance = await usdc.balanceOf(lender);
-      
-      document.getElementById("borrower").textContent = `${borrowerOwner} (via DAO ${borrower})`;
-      document.getElementById("lender").textContent = `${lenderAdmin} (via DAO ${lender})`;
-      document.getElementById("amount").textContent = Number(principal) / 1e6;
-      document.getElementById("interest").textContent = Number(interest) / 100;
-      document.getElementById("collateral").textContent = Number(collateral) / 1e18;
-      document.getElementById("borrowerBalance").textContent = (Number(borrowerBalance) / 1e6).toFixed(2);
-      document.getElementById("lenderBalance").textContent = (Number(lenderBalance) / 1e6).toFixed(2);
+                // Initialize core contracts (using signer for transactions)
+                loanContract = new ethers.Contract(loanAddress, loanABI, signer);
+                usdcContractInstance = new ethers.Contract(usdcAddress, erc20ABI, signer);
 
-    }
+                await refreshStatus();
 
-    async function fundLoan() {
-      if (!loanContract) await connectWallet();
-      const tx = await loanContract.fundLoan();
-      await tx.wait();
-      alert("Loan funded successfully!");
-    }
+            } catch (error) {
+                console.error("Connection failed:", error);
+                setTxMessage(`Wallet connection failed.`, 'error');
+            }
+        }
 
-    async function approveCollateral() {
-      if (!borrowerDAO) await connectWallet();
-      const collateral = await loanContract.collateralAmount();
-      const tx = await borrowerDAO.approveLoanCollateral(loanAddress, collateral);
-      await tx.wait();
-      alert("Collateral approved!");
-    }
+        async function refreshStatus() {
+            if (!loanContract) return;
 
-    async function payInterest() {
-      if (!loanContract) await connectWallet();
-      const tx = await loanContract.payInterest();
-      await tx.wait();
-      alert("Interest payment successful!");
-    }
+            setTxMessage("Fetching live loan data...", 'info');
+            
+            try {
+                // 1. Fetch Loan Constants & Status
+                const [
+                    borrowerDAOAddr, lenderDAOAddr, principal, interestRate, collateralAmount,
+                    disbursed, paymentsMade, startTime, loanDuration, quarterly, usdcAddr, collateralTokenAddr
+                ] = await Promise.all([
+                    loanContract.borrower(), loanContract.lender(), loanContract.principal(), loanContract.interestRate(), loanContract.collateralAmount(),
+                    loanContract.disbursed(), loanContract.paymentsMade(), loanContract.startTime(), loanContract.loanDuration(), loanContract.quarterly(),
+                    loanContract.usdc(), loanContract.collateralToken()
+                ]);
 
-    async function repayPrincipal() {
-      if (!loanContract) await connectWallet();
-      const tx = await loanContract.repayPrincipal();
-      await tx.wait();
-      alert("Principal repaid, collateral returned.");
-    }
+                loanData = {
+                    borrowerDAOAddr, lenderDAOAddr, principal, interestRate, collateralAmount,
+                    disbursed, paymentsMade: Number(paymentsMade), startTime: Number(startTime), loanDuration, quarterly, usdcAddr, collateralTokenAddr
+                };
 
-    async function claimCollateral() {
-      if (!loanContract) await connectWallet();
-      const tx = await loanContract.claimCollateral();
-      await tx.wait();
-      alert("Collateral claimed by lender.");
-    }
-  </script>
+                // 2. Fetch DAO Owners/Admins
+                borrowerDAOContractInstance = new ethers.Contract(borrowerDAOAddr, borrowerDAOABI, provider);
+                lenderDAOContractInstance = new ethers.Contract(lenderDAOAddr, lenderDAOABI, provider);
+                
+                const [borrowerOwner, lenderAdmin] = await Promise.all([
+                    borrowerDAOContractInstance.owner(),
+                    lenderDAOContractInstance.admin()
+                ]);
+                
+                loanData.borrowerOwner = borrowerOwner;
+                loanData.lenderAdmin = lenderAdmin;
+
+                // 3. Determine Role
+                let role = 'Spectator';
+                if (signerAddress === borrowerOwner) role = 'Borrower Admin';
+                else if (signerAddress === lenderAdmin) role = 'Lender Admin';
+                
+                loanData.role = role;
+                
+                // 4. Fetch Balances/Allowances
+                const [borrowerBalance, lenderBalance, usdcAllowance] = await Promise.all([
+                    usdcContractInstance.balanceOf(borrowerDAOAddr),
+                    usdcContractInstance.balanceOf(lenderDAOAddr),
+                    usdcContractInstance.allowance(borrowerDAOAddr, loanAddress)
+                ]);
+                
+                loanData.borrowerBalance = borrowerBalance;
+                loanData.lenderBalance = lenderBalance;
+                loanData.usdcAllowance = usdcAllowance;
+                
+                // 5. Update UI
+                updateLoanDisplay();
+                updateActionButtons();
+                setTxMessage("Data refreshed successfully.", 'success');
+
+            } catch (error) {
+                console.error("Error fetching status:", error);
+                setTxMessage(`Error loading data. Check console for details.`, 'error');
+            }
+        }
+
+        function updateLoanDisplay() {
+            // Role Display
+            const roleEl = document.getElementById("role-display");
+            roleEl.textContent = `Role: ${loanData.role}`;
+            roleEl.className = `text-sm font-bold ${loanData.role.includes('Admin') ? 'text-accent' : 'text-gray-400'}`;
+
+            // Loan Metrics
+            document.getElementById("amount").textContent = formatUnits(loanData.principal, USDC_DECIMALS);
+            document.getElementById("interest").textContent = (Number(loanData.interestRate) / 100).toFixed(2);
+            document.getElementById("collateral").textContent = Number(formatUnits(loanData.collateralAmount, COLLATERAL_DECIMALS)).toFixed(4);
+            document.getElementById("payments-made").textContent = `${loanData.paymentsMade} / 8`;
+            document.getElementById("loan-disbursed").textContent = loanData.disbursed ? 'Active' : 'Pending';
+            document.getElementById("loan-disbursed").className = loanData.disbursed ? 'font-semibold text-success' : 'font-semibold text-yellow-500';
+
+            // Time and Addresses
+            document.getElementById("time-remaining").textContent = timeRemaining(BigInt(loanData.startTime), loanData.loanDuration, loanData.disbursed);
+            document.getElementById("borrower-dao-owner").textContent = `${formatAddress(loanData.borrowerOwner)} (DAO Owner)`;
+            document.getElementById("lender-dao-admin").textContent = `${formatAddress(loanData.lenderAdmin)} (DAO Admin)`;
+            document.getElementById("borrower-dao-addr").textContent = loanData.borrowerDAOAddr;
+            document.getElementById("lender-dao-addr").textContent = loanData.lenderDAOAddr;
+            document.getElementById("collateral-token-addr").textContent = loanData.collateralTokenAddr;
+
+            // Balances & Allowance
+            document.getElementById("borrower-balance").textContent = Number(formatUnits(loanData.borrowerBalance, USDC_DECIMALS)).toFixed(2) + " USDC";
+            document.getElementById("lender-balance").textContent = Number(formatUnits(loanData.lenderBalance, USDC_DECIMALS)).toFixed(2) + " USDC";
+            document.getElementById("usdc-allowance").textContent = Number(formatUnits(loanData.usdcAllowance, USDC_DECIMALS)).toFixed(2) + " USDC";
+        }
+
+        function updateActionButtons() {
+            const container = document.getElementById('buttons-container');
+            container.innerHTML = ''; // Clear existing buttons
+            const role = loanData.role;
+            const disbursed = loanData.disbursed;
+            const paymentsMade = loanData.paymentsMade;
+            const numPayments = 8;
+            const isCollateralApproved = loanData.collateralAmount <= loanData.usdcAllowance;
+
+            const addButton = (text, onClick, isEnabled = true, roleSpecific = true) => {
+                const btn = document.createElement('button');
+                btn.textContent = text;
+                btn.onclick = onClick;
+                btn.className = `transition-all px-4 py-2 rounded-lg font-semibold text-sm shadow-lg w-full md:w-auto flex-grow ${isEnabled ? 'bg-accent hover:bg-accent-hover' : 'bg-gray-600 cursor-not-allowed'}`;
+                if (!isEnabled) btn.disabled = true;
+                container.appendChild(btn);
+            };
+
+            // --- ALL ROLES / COMMON ---
+            addButton('Refresh Data', refreshStatus, true, false);
+
+            if (role === 'Borrower Admin') {
+                if (!disbursed) {
+                    // Pre-Disbursement (Borrower needs to approve collateral)
+                    if (!isCollateralApproved) {
+                        addButton('1. Approve Collateral (DAO Token)', approveCollateral, true);
+                    } else {
+                        addButton('Collateral Approved', () => setTxMessage("Collateral is already approved.", 'info'), false);
+                    }
+                } else {
+                    // Post-Disbursement (Borrower makes payments)
+                    if (paymentsMade < numPayments) {
+                        addButton('Pay Quarterly Interest', payInterest, true);
+                    }
+                    if (timeRemaining(BigInt(loanData.startTime), loanData.loanDuration, true) === "Expired (Repayment Due)") {
+                        addButton('Repay Principal & Reclaim Collateral', repayPrincipal, true);
+                    }
+                }
+            }
+            
+            if (role === 'Lender Admin') {
+                if (!disbursed) {
+                    // Pre-Disbursement (Lender funds loan, requires collateral to be approved first)
+                    addButton('2. Fund Loan (Transfer USDC)', fundLoan, isCollateralApproved);
+                    if (!isCollateralApproved) {
+                        addButton('Waiting on Collateral Approval', () => setTxMessage("Borrower must approve collateral first.", 'info'), false);
+                    }
+                } else {
+                    // Post-Disbursement (Lender claims collateral on default)
+                    if (paymentsMade < numPayments && timeRemaining(BigInt(loanData.startTime), loanData.loanDuration, true) === "Expired (Repayment Due)") {
+                        addButton('Claim Collateral (Default)', claimCollateral, true);
+                    } else if (paymentsMade === numPayments && timeRemaining(BigInt(loanData.startTime), loanData.loanDuration, true) === "Expired (Repayment Due)") {
+                        addButton('Loan Paid Off (Awaiting Repayment)', () => setTxMessage("Loan is paid off. Collateral should be returned on Principal Repayment.", 'info'), false);
+                    }
+                }
+            }
+        }
+        
+        // --- TRANSACTION HANDLERS ---
+        
+        async function executeTransaction(txFunction, successMessage) {
+            if (!signer) {
+                setTxMessage("Please connect your wallet first.", 'error');
+                return;
+            }
+            setTxMessage("Transaction pending...", 'info');
+            
+            try {
+                const tx = await txFunction();
+                setTxMessage(`Transaction submitted: ${formatAddress(tx.hash)}. Waiting for confirmation...`, 'info');
+                await tx.wait();
+                setTxMessage(successMessage, 'success');
+                await refreshStatus(); // Refresh UI after successful TX
+            } catch (error) {
+                console.error("Transaction failed:", error);
+                let message = "Transaction failed.";
+                if (error.reason) message = `Transaction failed: ${error.reason}`;
+                else if (error.message && error.message.includes("user rejected transaction")) message = "Transaction rejected by user.";
+                else message = `Transaction failed. See console for details.`;
+                
+                setTxMessage(message, 'error');
+            }
+        }
+
+        // --- PUBLIC FUNCTIONS MAPPED TO BUTTONS ---
+
+        const approveCollateral = () => {
+            return executeTransaction(() => {
+                // Get the total required collateral amount
+                const collateral = loanData.collateralAmount; 
+                // The borrowerDAO's admin/owner (msg.sender) must call approveLoanCollateral on the BorrowerDAO contract
+                return borrowerDAOContractInstance.approveLoanCollateral(loanAddress, collateral);
+            }, "Collateral approved! Lender can now fund the loan.");
+        };
+
+        const fundLoan = () => {
+            return executeTransaction(() => {
+                // The lenderDAO's admin/owner (msg.sender) must call fundLoan on the Loan contract
+                return loanContract.fundLoan();
+            }, "Loan funded successfully! Principal transferred to Borrower DAO.");
+        };
+
+        const payInterest = () => {
+            // Note: This relies on the borrower having approved the LoanContract to spend USDC already.
+            return executeTransaction(() => {
+                // The borrowerDAO's admin/owner (msg.sender) must call payInterest on the Loan contract
+                return loanContract.payInterest();
+            }, "Quarterly interest payment successful!");
+        };
+
+        const repayPrincipal = () => {
+            return executeTransaction(() => {
+                // The borrowerDAO's admin/owner (msg.sender) must call repayPrincipal on the Loan contract
+                return loanContract.repayPrincipal();
+            }, "Principal repaid, collateral returned to Borrower DAO.");
+        };
+
+        const claimCollateral = () => {
+            return executeTransaction(() => {
+                // The lenderDAO's admin/owner (msg.sender) must call claimCollateral on the Loan contract
+                return loanContract.claimCollateral();
+            }, "Collateral claimed by Lender DAO due to default.");
+        };
+
+        // Initialize on load (try to connect automatically)
+        window.onload = () => {
+            if (window.ethereum) {
+                connectWallet();
+                // Set up event listener for account changes
+                window.ethereum.on('accountsChanged', connectWallet);
+                window.ethereum.on('chainChanged', connectWallet);
+            }
+        };
+
+    </script>
 </body>
 </html>
