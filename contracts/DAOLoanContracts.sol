@@ -17,6 +17,19 @@ contract BorrowerDAO {
         require(msg.sender == owner, "Not DAO owner");
         daoToken.approve(loanContract, amount);
     }
+
+    // 🌟 NEW FIX 1: Allows the DAO to approve USDC (or any ERC20) to the loan contract.
+    function approveToken(IERC20 token, address spender, uint256 amount) external onlyOwner {
+        token.approve(spender, amount);
+    }
+
+    // 🌟 NEW FIX 2: Allows the DAO to call functions on the loan contract,
+    // ensuring the DAO (this contract) is the msg.sender.
+    function executeLoanAction(address loanContract, bytes calldata data) external onlyOwner {
+        (bool success, ) = loanContract.call(data);
+        require(success, "DAO execution failed");
+    }
+
 }
 
 /**
