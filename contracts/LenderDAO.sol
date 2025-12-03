@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+// Define IERC20 interface HERE in this file
+interface IERC20 {
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+
 /**
  * (2) Minimal Lender DAO Contract
  */
