@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-// Define IERC20 interface HERE in this file
+// Minimal ERC20 interface (compatible with MockUSDC and MockDAOToken)
 interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function transfer(address to, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 amount) external returns (bool);
 }
 
 /**
