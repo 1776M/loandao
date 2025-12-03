@@ -16,5 +16,11 @@ contract LenderDAO {
         (bool success, ) = loanContract.call(data);
         require(success, "Loan execution failed");
     }
+
+    // Add this function so can send USDC to the daoloancontract:
+    function transferTokens(IERC20 token, address to, uint256 amount) external {
+        require(msg.sender == admin, "Only admin");
+        token.transfer(to, amount);
+    }
 }
 
