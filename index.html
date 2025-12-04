@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DAO-to-DAO Loan Dashboard (v3 - Proxy Fixed)</title>
-    <!-- Load Tailwind CSS -->
+    <title>DAO-to-DAO Loan Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Ethers.js -->
     <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 
     <script>
@@ -35,7 +33,7 @@
 </head>
 <body class="bg-primary-bg min-h-screen flex items-start justify-center p-4 text-white">
 
-    <div class="container bg-secondary-bg p-6 rounded-xl shadow-2xl max-w-lg w-full md:max-w-3xl">
+    <div class="container bg-secondary-bg p-6 rounded-xl shadow-2xl max-w-lg w-full md:max-w-4xl">
         <h1 class="text-3xl font-bold mb-4 text-center text-accent">DAO-to-DAO Loan Dashboard</h1>
         
         <!-- Connection Status & Role -->
@@ -62,6 +60,7 @@
                     <p><strong>Payments Made:</strong> <span id="payments-made">--</span> / 8</p>
                     <p><strong>Loan Status:</strong> <span id="loan-disbursed" class="font-semibold text-yellow-500">Pending</span></p>
                     <p><strong>Time Remaining:</strong> <span id="time-remaining">--</span></p>
+                    <p class="col-span-full"><strong>Next Payment Due:</strong> <span id="next-payment-due">--</span></p>
                 </div>
             </div>
 
@@ -69,10 +68,10 @@
             <div class="p-5 bg-card-bg rounded-lg shadow-md">
                 <h2 class="text-xl font-semibold mb-3">Party Details</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <p><strong>Borrower DAO:</strong> <span id="borrower-dao-owner" class="truncate">--</span></p>
-                    <p><strong>Lender DAO:</strong> <span id="lender-dao-admin" class="truncate">--</span></p>
-                    <p><strong>DAO Contract (B):</strong> <span id="borrower-dao-addr" class="truncate text-gray-400">--</span></p>
-                    <p><strong>DAO Contract (L):</strong> <span id="lender-dao-addr" class="truncate text-gray-400">--</span></p>
+                    <p><strong>Borrower DAO Owner:</strong> <span id="borrower-dao-owner" class="truncate">--</span></p>
+                    <p><strong>Lender DAO Admin:</strong> <span id="lender-dao-admin" class="truncate">--</span></p>
+                    <p><strong>Borrower DAO Contract:</strong> <span id="borrower-dao-addr" class="truncate text-gray-400">--</span></p>
+                    <p><strong>Lender DAO Contract:</strong> <span id="lender-dao-addr" class="truncate text-gray-400">--</span></p>
                 </div>
             </div>
 
@@ -84,14 +83,26 @@
                 </div>
             </div>
 
-            <!-- Balances (Always visible) -->
+            <!-- Balances & Allowances -->
             <div class="p-5 bg-card-bg rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-3">Liquidity Snapshot</h2>
+                <h2 class="text-xl font-semibold mb-3">Balances & Allowances</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <p><strong>Borrower USDC Balance:</strong> <span id="borrower-balance">--</span></p>
-                    <p><strong>Lender USDC Balance:</strong> <span id="lender-balance">--</span></p>
-                    <p><strong>Collateral Token Address:</strong> <span id="collateral-token-addr" class="truncate text-gray-400">--</span></p>
-                    <p><strong>Loan USDC Allowance:</strong> <span id="usdc-allowance">--</span></p>
+                    <p><strong>Borrower DAO USDC:</strong> <span id="borrower-balance">--</span></p>
+                    <p><strong>Lender DAO USDC:</strong> <span id="lender-balance">--</span></p>
+                    <p><strong>Loan Contract USDC:</strong> <span id="loan-balance">--</span></p>
+                    <p><strong>Borrower DAO Collateral:</strong> <span id="borrower-collateral-balance">--</span></p>
+                    <p><strong>USDC Allowance (to Loan):</strong> <span id="usdc-allowance">--</span></p>
+                    <p><strong>Collateral Allowance (to Loan):</strong> <span id="collateral-allowance">--</span></p>
+                </div>
+            </div>
+
+            <!-- Contract Addresses -->
+            <div class="p-5 bg-card-bg rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-3">Contract Addresses</h2>
+                <div class="grid grid-cols-1 gap-2 text-xs font-mono">
+                    <p><strong>USDC:</strong> <span id="usdc-addr" class="text-gray-400">--</span></p>
+                    <p><strong>Collateral Token:</strong> <span id="collateral-token-addr" class="text-gray-400">--</span></p>
+                    <p><strong>Loan Contract:</strong> <span id="loan-contract-addr" class="text-gray-400">--</span></p>
                 </div>
             </div>
         </div>
@@ -99,21 +110,18 @@
 
     <script>
         // --- CONSTANTS AND GLOBALS ---
-        // Make sure this is your latest DAOLoanContract deployment
         const loanAddress = "0x9932e0A5D9bc18d443ADe39c4c1c0bd0787A64Fd";
 
         const USDC_DECIMALS = 6;
         const COLLATERAL_DECIMALS = 18;
         
         // --- ABIS ---
-        // 1. ERC20
         const erc20ABI = [
             "function balanceOf(address owner) view returns (uint256)",
             "function approve(address spender, uint256 amount) external returns (bool)",
             "function allowance(address owner, address spender) view returns (uint256)"
         ];
 
-        // 2. LOAN CONTRACT
         const loanABI = [
             "function fundLoan() external",
             "function payInterest() external",
@@ -130,10 +138,10 @@
             "function loanDuration() view returns (uint256)",
             "function quarterly() view returns (uint256)",
             "function usdc() view returns (address)",
-            "function collateralToken() view returns (address)"
+            "function collateralToken() view returns (address)",
+            "function numPayments() view returns (uint256)"
         ];
 
-        // 3. BORROWER DAO ABI (with proxy functions)
         const borrowerDAOABI = [
             "function approveLoanCollateral(address loanContract, uint256 amount) external",
             "function owner() view returns (address)",
@@ -141,14 +149,14 @@
             "function executeLoanAction(address loanContract, bytes calldata data) external"
         ];
 
-        // 4. LENDER DAO ABI
         const lenderDAOABI = [
             "function admin() view returns (address)",
-            "function executeLoan(address loanContract, bytes calldata data) external"
+            "function executeLoan(address loanContract, bytes calldata data) external",
+            "function transferTokens(address token, address to, uint256 amount) external"
         ];
 
         let provider, signer, signerAddress;
-        let loanContract, borrowerDAOContractInstance, lenderDAOContractInstance, usdcContractInstance;
+        let loanContract, borrowerDAOContractInstance, lenderDAOContractInstance, usdcContractInstance, collateralTokenContract;
         let loanData = {};
         
         // --- UTILITY FUNCTIONS ---
@@ -169,7 +177,23 @@
             if (now >= endTime) return "Expired (Repayment Due)";
             const remaining = endTime - now;
             const days = Number(remaining) / (60 * 60 * 24);
-            return `${days.toFixed(0)} days left`;
+            const hours = Number(remaining) / (60 * 60);
+            if (days >= 1) return `${days.toFixed(1)} days`;
+            if (hours >= 1) return `${hours.toFixed(1)} hours`;
+            return `${Math.floor(Number(remaining) / 60)} minutes`;
+        };
+
+        const nextPaymentDue = (startTime, quarterly, paymentsMade, numPayments, disbursed) => {
+            if (!disbursed || paymentsMade >= numPayments) return "N/A";
+            const now = BigInt(Math.floor(Date.now() / 1000));
+            const nextDue = startTime + (quarterly * BigInt(paymentsMade + 1));
+            if (now >= nextDue) return "Payment Overdue!";
+            const remaining = nextDue - now;
+            const days = Number(remaining) / (60 * 60 * 24);
+            const hours = Number(remaining) / (60 * 60);
+            if (days >= 1) return `${days.toFixed(1)} days`;
+            if (hours >= 1) return `${hours.toFixed(1)} hours`;
+            return `${Math.floor(Number(remaining) / 60)} minutes`;
         };
 
         // --- CORE FUNCTIONS ---
@@ -182,12 +206,11 @@
             try {
                 provider = new ethers.BrowserProvider(window.ethereum);
                 signer = await provider.getSigner();
-                signerAddress = await signer.getAddress(); // ethers v6
+                signerAddress = await signer.getAddress();
 
                 document.getElementById("connection-status").innerHTML =
                     `<span class="text-success font-semibold">Wallet: ${formatAddress(signerAddress)}</span>`;
 
-                // Initialize Loan contract
                 loanContract = new ethers.Contract(loanAddress, loanABI, signer);
 
                 await refreshStatus();
@@ -202,10 +225,10 @@
             setTxMessage("Fetching data...", 'info');
             
             try {
-                // 1. Fetch Loan Data
                 const [
                     borrowerDAOAddr, lenderDAOAddr, principal, interestRate, collateralAmount,
-                    disbursed, paymentsMade, startTime, loanDuration, quarterly, usdcAddr, collateralTokenAddr
+                    disbursed, paymentsMade, startTime, loanDuration, quarterly, usdcAddr, 
+                    collateralTokenAddr, numPayments
                 ] = await Promise.all([
                     loanContract.borrower(),
                     loanContract.lender(),
@@ -218,7 +241,8 @@
                     loanContract.loanDuration(),
                     loanContract.quarterly(),
                     loanContract.usdc(),
-                    loanContract.collateralToken()
+                    loanContract.collateralToken(),
+                    loanContract.numPayments()
                 ]);
 
                 loanData = {
@@ -229,14 +253,14 @@
                     collateralAmount,
                     disbursed,
                     paymentsMade: Number(paymentsMade),
-                    startTime: Number(startTime),
+                    startTime: BigInt(startTime),
                     loanDuration,
                     quarterly,
                     usdcAddr,
-                    collateralTokenAddr
+                    collateralTokenAddr,
+                    numPayments: Number(numPayments)
                 };
 
-                // 2. Initialize DAO Contracts (with signer)
                 borrowerDAOContractInstance = new ethers.Contract(borrowerDAOAddr, borrowerDAOABI, signer);
                 lenderDAOContractInstance   = new ethers.Contract(lenderDAOAddr, lenderDAOABI, signer);
 
@@ -248,34 +272,40 @@
                 loanData.borrowerOwner = borrowerOwner;
                 loanData.lenderAdmin   = lenderAdmin;
 
-                // 3. Determine Role
                 let role = 'Spectator';
                 if (signerAddress.toLowerCase() === borrowerOwner.toLowerCase()) role = 'Borrower Admin';
                 else if (signerAddress.toLowerCase() === lenderAdmin.toLowerCase()) role = 'Lender Admin';
                 loanData.role = role;
 
-                // 4. Initialize token contracts & fetch balances / allowances
                 usdcContractInstance = new ethers.Contract(usdcAddr, erc20ABI, signer);
-                const collateralTokenContract = new ethers.Contract(collateralTokenAddr, erc20ABI, signer);
+                collateralTokenContract = new ethers.Contract(collateralTokenAddr, erc20ABI, signer);
 
                 const [
                     borrowerBalance,
                     lenderBalance,
+                    loanBalance,
+                    borrowerCollateralBalance,
                     usdcAllowance,
-                    collateralAllowance
+                    collateralAllowance,
+                    lenderDAOBalance
                 ] = await Promise.all([
                     usdcContractInstance.balanceOf(borrowerDAOAddr),
                     usdcContractInstance.balanceOf(lenderDAOAddr),
+                    usdcContractInstance.balanceOf(loanAddress),
+                    collateralTokenContract.balanceOf(borrowerDAOAddr),
                     usdcContractInstance.allowance(borrowerDAOAddr, loanAddress),
-                    collateralTokenContract.allowance(borrowerDAOAddr, loanAddress)
+                    collateralTokenContract.allowance(borrowerDAOAddr, loanAddress),
+                    usdcContractInstance.balanceOf(lenderDAOAddr)
                 ]);
 
-                loanData.borrowerBalance    = borrowerBalance;
-                loanData.lenderBalance      = lenderBalance;
-                loanData.usdcAllowance      = usdcAllowance;
+                loanData.borrowerBalance = borrowerBalance;
+                loanData.lenderBalance = lenderBalance;
+                loanData.loanBalance = loanBalance;
+                loanData.borrowerCollateralBalance = borrowerCollateralBalance;
+                loanData.usdcAllowance = usdcAllowance;
                 loanData.collateralAllowance = collateralAllowance;
+                loanData.lenderDAOBalance = lenderDAOBalance;
 
-                // 5. Update UI
                 updateLoanDisplay();
                 updateActionButtons();
                 setTxMessage("Data refreshed.", 'success');
@@ -291,46 +321,58 @@
             roleEl.textContent = `Role: ${loanData.role}`;
             roleEl.className = `text-sm font-bold ${loanData.role.includes('Admin') ? 'text-accent' : 'text-gray-400'}`;
 
-            document.getElementById("amount").textContent       = formatUnits(loanData.principal, USDC_DECIMALS);
-            document.getElementById("interest").textContent     = (Number(loanData.interestRate) / 100).toFixed(2);
-            document.getElementById("collateral").textContent   = Number(formatUnits(loanData.collateralAmount, COLLATERAL_DECIMALS)).toFixed(4);
-            document.getElementById("payments-made").textContent = `${loanData.paymentsMade} / 8`;
+            document.getElementById("amount").textContent = formatUnits(loanData.principal, USDC_DECIMALS);
+            document.getElementById("interest").textContent = (Number(loanData.interestRate) / 100).toFixed(2);
+            document.getElementById("collateral").textContent = Number(formatUnits(loanData.collateralAmount, COLLATERAL_DECIMALS)).toFixed(4);
+            document.getElementById("payments-made").textContent = `${loanData.paymentsMade} / ${loanData.numPayments}`;
 
             document.getElementById("loan-disbursed").textContent = loanData.disbursed ? 'Active' : 'Pending';
-            document.getElementById("loan-disbursed").className   = loanData.disbursed
+            document.getElementById("loan-disbursed").className = loanData.disbursed
                 ? 'font-semibold text-success'
                 : 'font-semibold text-yellow-500';
 
             document.getElementById("time-remaining").textContent =
-                timeRemaining(BigInt(loanData.startTime), loanData.loanDuration, loanData.disbursed);
+                timeRemaining(loanData.startTime, loanData.loanDuration, loanData.disbursed);
+
+            document.getElementById("next-payment-due").textContent =
+                nextPaymentDue(loanData.startTime, loanData.quarterly, loanData.paymentsMade, loanData.numPayments, loanData.disbursed);
 
             document.getElementById("borrower-dao-owner").textContent = formatAddress(loanData.borrowerOwner);
-            document.getElementById("lender-dao-admin").textContent   = formatAddress(loanData.lenderAdmin);
-            document.getElementById("borrower-dao-addr").textContent  = loanData.borrowerDAOAddr;
-            document.getElementById("lender-dao-addr").textContent    = loanData.lenderDAOAddr;
+            document.getElementById("lender-dao-admin").textContent = formatAddress(loanData.lenderAdmin);
+            document.getElementById("borrower-dao-addr").textContent = loanData.borrowerDAOAddr;
+            document.getElementById("lender-dao-addr").textContent = loanData.lenderDAOAddr;
+            
+            document.getElementById("usdc-addr").textContent = loanData.usdcAddr;
             document.getElementById("collateral-token-addr").textContent = loanData.collateralTokenAddr;
+            document.getElementById("loan-contract-addr").textContent = loanAddress;
 
             document.getElementById("borrower-balance").textContent =
                 Number(formatUnits(loanData.borrowerBalance, USDC_DECIMALS)).toFixed(2) + " USDC";
             document.getElementById("lender-balance").textContent =
                 Number(formatUnits(loanData.lenderBalance, USDC_DECIMALS)).toFixed(2) + " USDC";
+            document.getElementById("loan-balance").textContent =
+                Number(formatUnits(loanData.loanBalance, USDC_DECIMALS)).toFixed(2) + " USDC";
+            document.getElementById("borrower-collateral-balance").textContent =
+                Number(formatUnits(loanData.borrowerCollateralBalance, COLLATERAL_DECIMALS)).toFixed(4) + " DAO";
             document.getElementById("usdc-allowance").textContent =
                 Number(formatUnits(loanData.usdcAllowance, USDC_DECIMALS)).toFixed(2) + " USDC";
+            document.getElementById("collateral-allowance").textContent =
+                Number(formatUnits(loanData.collateralAllowance, COLLATERAL_DECIMALS)).toFixed(4) + " DAO";
         }
 
         function updateActionButtons() {
             const container = document.getElementById('buttons-container');
             container.innerHTML = '';
 
-            const role         = loanData.role;
-            const disbursed    = loanData.disbursed;
+            const role = loanData.role;
+            const disbursed = loanData.disbursed;
             const paymentsMade = loanData.paymentsMade;
-            const numPayments  = 8;
+            const numPayments = loanData.numPayments;
 
-            // Collateral and USDC allowance checks
             const collateralApproved = loanData.collateralAllowance >= loanData.collateralAmount;
             const requiredUSDCAllowance = (loanData.principal * 150n) / 100n;
-            const isUSDCApproved       = loanData.usdcAllowance >= requiredUSDCAllowance;
+            const isUSDCApproved = loanData.usdcAllowance >= requiredUSDCAllowance;
+            const lenderHasUSDC = loanData.lenderDAOBalance >= loanData.principal;
 
             const addButton = (text, onClick, isEnabled = true, colorClass = 'bg-accent hover:bg-accent-hover') => {
                 const btn = document.createElement('button');
@@ -343,25 +385,22 @@
                 container.appendChild(btn);
             };
 
-            // Always show a Refresh button
             addButton('Refresh', refreshStatus, true, 'bg-gray-600 hover:bg-gray-500');
 
             if (role === 'Borrower Admin') {
                 if (!disbursed) {
-                    // Pre-Disbursement Flow
                     if (!collateralApproved) {
                         addButton('1. Approve Collateral', approveCollateral, true);
                     } else {
-                        addButton('Collateral Approved', () => {}, false);
+                        addButton('✓ Collateral Approved', () => {}, false, 'bg-success/50');
                     }
 
                     if (!isUSDCApproved) {
-                        addButton('2. Approve USDC (Repayment)', approveUSDC, true);
+                        addButton('2. Approve USDC', approveUSDC, true);
                     } else {
-                        addButton('USDC Approved', () => {}, false);
+                        addButton('✓ USDC Approved', () => {}, false, 'bg-success/50');
                     }
                 } else {
-                    // Post-Disbursement Flow
                     if (paymentsMade < numPayments) {
                         addButton(`Pay Q${paymentsMade + 1} Interest`, payInterest, true);
                     } else {
@@ -372,13 +411,19 @@
             
             if (role === 'Lender Admin') {
                 if (!disbursed) {
-                    // Lender can only fund when collateral is approved
-                    addButton('3. Fund Loan', fundLoan, collateralApproved);
+                    const canFund = collateralApproved && lenderHasUSDC;
+                    addButton('3. Fund Loan', fundLoan, canFund);
+                    
                     if (!collateralApproved) {
-                        addButton('Waiting on Collateral Approval', () => {}, false);
+                        addButton('⏳ Awaiting Collateral', () => {}, false);
+                    } else if (!lenderHasUSDC) {
+                        addButton('⚠ LenderDAO Needs USDC', () => {}, false);
                     }
                 } else {
-                    if (timeRemaining(BigInt(loanData.startTime), loanData.loanDuration, true).includes("Expired")) {
+                    const now = BigInt(Math.floor(Date.now() / 1000));
+                    const expired = now > loanData.startTime + loanData.loanDuration;
+                    
+                    if (expired && paymentsMade < numPayments) {
                         addButton('Claim Collateral (Default)', claimCollateral, true, 'bg-red-600 hover:bg-red-700');
                     } else {
                         addButton('Loan Active', () => {}, false);
@@ -398,15 +443,15 @@
                 await refreshStatus();
             } catch (error) {
                 console.error(error);
-                let msg = "Failed.";
+                let msg = "Transaction failed.";
                 if (error.reason) msg = error.reason;
-                else if (error.message && error.message.includes("user rejected")) msg = "User rejected.";
-                else if (error.data) msg = "Revert (check console)";
+                else if (error.message && error.message.includes("user rejected")) msg = "User rejected transaction.";
+                else if (error.data) msg = "Transaction reverted (check console)";
                 setTxMessage(msg, 'error');
             }
         }
 
-        // --- TX WRAPPERS (PROXY CALLS) ---
+        // --- TX WRAPPERS ---
 
         const approveCollateral = () => executeTransaction(() => {
             return borrowerDAOContractInstance.approveLoanCollateral(
@@ -424,10 +469,37 @@
             );
         }, "USDC Approved!");
 
-        const fundLoan = () => executeTransaction(() => {
-            const data = loanContract.interface.encodeFunctionData("fundLoan", []);
-            return lenderDAOContractInstance.executeLoan(loanAddress, data);
-        }, "Loan Funded!");
+        const fundLoan = async () => {
+            if (!signer) return setTxMessage("Connect wallet.", 'error');
+            setTxMessage("Step 1/2: Transferring USDC to loan contract...", 'info');
+            
+            try {
+                const transferTx = await lenderDAOContractInstance.transferTokens(
+                    loanData.usdcAddr,
+                    loanAddress,
+                    loanData.principal
+                );
+                setTxMessage(`USDC transfer submitted: ${formatAddress(transferTx.hash)}`, 'info');
+                await transferTx.wait();
+                
+                setTxMessage("Step 2/2: Funding loan...", 'info');
+                
+                const data = loanContract.interface.encodeFunctionData("fundLoan", []);
+                const fundTx = await lenderDAOContractInstance.executeLoan(loanAddress, data);
+                setTxMessage(`Fund loan submitted: ${formatAddress(fundTx.hash)}`, 'info');
+                await fundTx.wait();
+                
+                setTxMessage("Loan Funded Successfully!", 'success');
+                await refreshStatus();
+            } catch (error) {
+                console.error(error);
+                let msg = "Failed to fund loan.";
+                if (error.reason) msg = error.reason;
+                else if (error.message && error.message.includes("user rejected")) msg = "User rejected transaction.";
+                else if (error.data) msg = "Transaction reverted (check console)";
+                setTxMessage(msg, 'error');
+            }
+        };
 
         const payInterest = () => executeTransaction(() => {
             const data = loanContract.interface.encodeFunctionData("payInterest", []);
