@@ -49,14 +49,15 @@ contract DAOLoanContract {
         require(msg.sender == lender, "Only lender");
         require(!disbursed, "Already disbursed");
 
+        startTime = block.timestamp;
+        disbursed = true;
+
         // Lock collateral
         collateralToken.transferFrom(borrower, address(this), collateralAmount);
 
         // Transfer loan to borrower
         usdc.transfer(borrower, principal);
 
-        startTime = block.timestamp;
-        disbursed = true;
     }
 
     function payInterest() external {
