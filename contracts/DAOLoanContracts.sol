@@ -21,8 +21,8 @@ contract DAOLoanContract {
     uint256 public interestRate; // e.g., 5% = 500 (bps)
     uint256 public collateralAmount;
     uint256 public startTime;
-    uint256 public loanDuration = 8 minutes;
-    uint256 public quarterly = 2 minutes;
+    uint256 public loanDuration = 4 minutes;
+    uint256 public quarterly = 1 minutes;
     uint256 public numPayments = 4;
     bool public disbursed;
     uint256 public paymentsMade;
