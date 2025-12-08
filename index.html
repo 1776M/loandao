@@ -140,6 +140,7 @@
             "function usdc() view returns (address)",
             "function collateralToken() view returns (address)",
             "function numPayments() view returns (uint256)"
+            "function principalRepaid() view returns (bool)"
         ];
 
         const borrowerDAOABI = [
@@ -228,7 +229,7 @@
                 const [
                     borrowerDAOAddr, lenderDAOAddr, principal, interestRate, collateralAmount,
                     disbursed, paymentsMade, startTime, loanDuration, quarterly, usdcAddr, 
-                    collateralTokenAddr, numPayments
+                    collateralTokenAddr, numPayments, principalRepaid
                 ] = await Promise.all([
                     loanContract.borrower(),
                     loanContract.lender(),
@@ -243,6 +244,7 @@
                     loanContract.usdc(),
                     loanContract.collateralToken(),
                     loanContract.numPayments()
+                    loanContract.principalRepaid() 
                 ]);
 
                 loanData = {
@@ -258,7 +260,8 @@
                     quarterly,
                     usdcAddr,
                     collateralTokenAddr,
-                    numPayments: Number(numPayments)
+                    numPayments: Number(numPayments),
+                    principalRepaid 
                 };
 
                 borrowerDAOContractInstance = new ethers.Contract(borrowerDAOAddr, borrowerDAOABI, signer);
@@ -378,8 +381,7 @@
             const collateralInLoanContract = loanData.loanBalance > 0n || 
                                             (loanData.borrowerCollateralBalance >= loanData.collateralAmount && 
                                              disbursed && paymentsMade === numPayments);
-            const loanCompleted = disbursed && paymentsMade === numPayments && 
-                                 loanData.borrowerCollateralBalance >= loanData.collateralAmount;
+            const loanCompleted = disbursed && loanData.principalRepaid && paymentsMade === numPayments;
 
             const addButton = (text, onClick, isEnabled = true, colorClass = 'bg-accent hover:bg-accent-hover') => {
                 const btn = document.createElement('button');
@@ -436,7 +438,7 @@
                     // Check if loan is completed
                     if (loanCompleted) {
                         addButton('✓ Loan Repaid Successfully', () => {}, false, 'bg-success/50');
-                    } else if (expired && paymentsMade < numPayments) {
+                    } else if (expired && (paymentsMade < numPayments || !loanData.principalRepaid)) {
                         addButton('Claim Collateral (Default)', claimCollateral, true, 'bg-red-600 hover:bg-red-700');
                     } else {
                         addButton('Loan Active', () => {}, false);
