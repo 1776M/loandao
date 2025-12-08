@@ -26,6 +26,7 @@ contract DAOLoanContract {
     uint256 public numPayments = 4;
     bool public disbursed;
     uint256 public paymentsMade;
+    bool public principalRepaid; 
 
     constructor(
         address _borrower,
@@ -79,12 +80,13 @@ contract DAOLoanContract {
 
         usdc.transferFrom(borrower, lender, principal);
         collateralToken.transfer(borrower, collateralAmount);
+        principalRepaid = true;
     }
 
     function claimCollateral() external {
         require(msg.sender == lender, "Only lender");
         require(block.timestamp > startTime + loanDuration, "Loan not expired");
-        require(paymentsMade < numPayments, "No default");
+        require(paymentsMade < numPayments || !principalRepaid, "No default");
 
         collateralToken.transfer(lender, collateralAmount);
     }
